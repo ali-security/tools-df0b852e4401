@@ -10,6 +10,7 @@ import (
 	"go/token"
 	"net"
 	"os"
+	"strings"
 	"sync"
 
 	"golang.org/x/tools/go/packages"
@@ -32,7 +33,7 @@ func RunServer(ctx context.Context, stream jsonrpc2.Stream, opts ...interface{})
 // This function exists for debugging purposes.
 func RunServerOnPort(ctx context.Context, port int, opts ...interface{}) error {
 	s := &server{}
-	ln, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
+	ln, err := listen(fmt.Sprintf(":%v", port))
 	if err != nil {
 		return err
 	}
@@ -48,6 +49,17 @@ func RunServerOnPort(ctx context.Context, port int, opts ...interface{}) error {
 			conn.Wait(ctx)
 		}()
 	}
+}
+
+// listen opens a TCP listener on addr. An address with no host, such as
+// ":8080", is bound to localhost rather than to all network interfaces, so
+// that the debugging server is not reachable from other machines
+// (CVE-2026-42503).
+func listen(addr string) (net.Listener, error) {
+	if strings.HasPrefix(addr, ":") {
+		addr = "localhost" + addr
+	}
+	return net.Listen("tcp", addr)
 }
 
 type server struct {
